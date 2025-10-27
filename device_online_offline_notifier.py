@@ -25,7 +25,7 @@ SMTP_PORT = 587
 EMAIL_USER = "testwebservice71@gmail.com"
 EMAIL_PASS = "akuu vulg ejlg ysbt"
 
-# TZ = pytz.timezone("Asia/Singapore")
+TZ = pytz.timezone("Asia/Singapore")
 
 # ===================================================
 def build_message(ntf_typ, devnm):
@@ -127,7 +127,7 @@ def check_device_online_status():
         cursor = conn.cursor(dictionary=True)
 
         offline_threshold = 5 # minutes
-        now = datetime.now()
+        now = datetime.now(TZ)
 
         cursor.execute("""
             SELECT DEVICE_ID, DEVICE_NAME
@@ -153,7 +153,7 @@ def check_device_online_status():
 
             reading_time = (datetime.min + last_read["READING_TIME"]).time()
             last_update = datetime.combine(last_read["READING_DATE"], reading_time)
-            last_update = (last_update)
+            last_update = TZ.localize(last_update)
             diff_minutes = (now - last_update).total_seconds() / 60
 
             if diff_minutes > offline_threshold:
