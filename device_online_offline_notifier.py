@@ -112,7 +112,7 @@ def check_device_online_status():
     try:
         conn = mysql.connector.connect(**db_config)
         cursor = conn.cursor(dictionary=True)
-        now = datetime.now(TZ)  # Singapore timezone
+        now = datetime.now(TZ)  # current Singapore time
 
         cursor.execute("SELECT DEVICE_ID, DEVICE_NAME FROM master_device")
         devices = cursor.fetchall()
@@ -121,37 +121,55 @@ def check_device_online_status():
             devid = device["DEVICE_ID"]
             devnm = device["DEVICE_NAME"]
 
-            cursor.execute("SELECT READING_DATE, READING_TIME FROM device_reading_log WHERE DEVICE_ID=%s ORDER BY READING_DATE DESC, READING_TIME DESC LIMIT 1", (devid,))
+            cursor.execute("""
+                SELECT READING_DATE, READING_TIME 
+                FROM device_reading_log 
+                WHERE DEVICE_ID=%s 
+                ORDER BY READING_DATE DESC, READING_TIME DESC 
+                LIMIT 1
+            """, (devid,))
             last_read = cursor.fetchone()
             diff_minutes = None
-            if last_read:
-                reading_time = (datetime.min + last_read["READING_TIME"]).time()
-                last_update = datetime.combine(last_read["READING_DATE"], reading_time)
-                last_update = TZ.localize(last_update)  # convert to Singapore TZ
-                diff_minutes = (now - last_update).total_seconds()/60
 
-            current_state = "offline" if (diff_minutes is None or diff_minutes > OFFLINE_THRESHOLD) else "online"
+            if last_read and last_read["READING_DATE"] and last_read["READING_TIME"]:
+                # ✅ Combine READING_DATE + READING_TIME safely
+                last_update = datetime.combine(last_read["READING_DATE"], last_read["READING_TIME"])
+
+                # ✅ If DB time is naive (no timezone info), localize it as Singapore time
+                if last_update.tzinfo is None:
+                    last_update = TZ.localize(last_update)
+
+                diff_minutes = (now - last_update).total_seconds() / 60
+            else:
+                diff_minutes = 9999  # no reading found → consider offline
+
+            # ✅ Proper logic to decide online/offline
+            current_state = "offline" if diff_minutes > OFFLINE_THRESHOLD else "online"
             previous_state = device_status.get(devid)
 
-            if previous_state != current_state:  # state changed
+            if previous_state != current_state:
                 device_status[devid] = current_state
                 phones, emails = get_contact_info(devid)
 
                 if current_state == "offline":
-                    print(f"🚨 {devnm} is OFFLINE! Last update: {diff_minutes} mins ago")
+                    print(f"🚨 {devnm} is OFFLINE! Last update: {round(diff_minutes,2)} mins ago")
                     message = build_message(3, devnm)
                 else:
-                    print(f"✅ {devnm} is ONLINE! Last update: {diff_minutes} mins ago")
+                    print(f"✅ {devnm} is ONLINE! Last update: {round(diff_minutes,2)} mins ago")
                     message = build_message(5, devnm)
 
+                # send notifications
                 for phone in phones:
                     send_sms(phone, message)
                 send_email(f"{devnm} Status Update", message, emails)
 
-                # log only offline
+                # log only offline state
                 if current_state == "offline":
-                    cursor.execute("INSERT INTO iot_api_devicealarmlog (DEVICE_ID, ALARM_DATE, ALARM_TIME, IS_ACTIVE) VALUES (%s,%s,%s,1)",
-                                   (devid, now.date(), now.time()))
+                    cursor.execute("""
+                        INSERT INTO iot_api_devicealarmlog 
+                        (DEVICE_ID, ALARM_DATE, ALARM_TIME, IS_ACTIVE)
+                        VALUES (%s,%s,%s,1)
+                    """, (devid, now.date(), now.time()))
                     conn.commit()
             else:
                 print(f"⏹ No state change for {devnm}, current state: {current_state}")
