@@ -4,6 +4,7 @@ import time as t
 import requests
 import smtplib
 from email.mime.text import MIMEText
+import pytz
 
 # ================== CONFIG ==================
 db_config = {
@@ -28,6 +29,9 @@ OFFLINE_THRESHOLD = 5  # minutes
 
 # track device states
 device_status = {}  # DEVICE_ID -> "online"/"offline"
+
+# timezone
+TZ = pytz.timezone("Asia/Singapore")
 
 # ================== FUNCTIONS ==================
 def build_message(ntf_typ, devnm):
@@ -108,7 +112,7 @@ def check_device_online_status():
     try:
         conn = mysql.connector.connect(**db_config)
         cursor = conn.cursor(dictionary=True)
-        now = datetime.now()
+        now = datetime.now(TZ)  # Singapore timezone
 
         cursor.execute("SELECT DEVICE_ID, DEVICE_NAME FROM master_device")
         devices = cursor.fetchall()
@@ -123,6 +127,7 @@ def check_device_online_status():
             if last_read:
                 reading_time = (datetime.min + last_read["READING_TIME"]).time()
                 last_update = datetime.combine(last_read["READING_DATE"], reading_time)
+                last_update = TZ.localize(last_update)  # convert to Singapore TZ
                 diff_minutes = (now - last_update).total_seconds()/60
 
             current_state = "offline" if (diff_minutes is None or diff_minutes > OFFLINE_THRESHOLD) else "online"
