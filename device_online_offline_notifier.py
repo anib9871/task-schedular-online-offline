@@ -176,5 +176,5 @@ def check_device_online_status():
 if __name__ == "__main__":
     while True:
         check_device_online_status()
-        print("⏳ Waiting 1 minute for next check...")
-        t.sleep(60)
+        # print("⏳ Waiting 1 minute for next check...")
+        # t.sleep(60)
