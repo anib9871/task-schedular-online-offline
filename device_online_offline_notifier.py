@@ -119,12 +119,15 @@ def check_device_online_status():
         cursor = conn.cursor(dictionary=True)
         now = datetime.now()
 
-        cursor.execute("SELECT DEVICE_ID, DEVICE_NAME FROM master_device")
+        # ✅ Fetch only active devices
+        cursor.execute("SELECT DEVICE_ID, DEVICE_NAME FROM master_device WHERE DEVICE_STATUS = 1")
         devices = cursor.fetchall()
 
         for device in devices:
             devid = device["DEVICE_ID"]
             devnm = device["DEVICE_NAME"]
+            ...
+            # rest of your logic remains same
 
             # ---- get last reading ----
             cursor.execute(
@@ -272,7 +275,6 @@ def check_device_online_status():
 
 # ================== RUN LOOP ==================
 if __name__ == "__main__":
-    while True:
+        print("🚀 Starting Devices check...")
         check_device_online_status()
-        # print("⏳ Waiting 60 seconds for next check...")
-        # t.sleep(60)
+        print("✅ Devices check complete. Exiting now.")
