@@ -265,7 +265,9 @@ def check_device_online_status():
                         print(f"⚠️ {devnm} state changed but 6-hour notification limit not reached.")
                         device_status[devid] = current_state
             else:
-                print(f"⏹ No state change for {devnm}, current state: {current_state}")
+               #====changed by anindam to reduce cost print(f"⏹ No state change for {devnm}, current state: {current_state}")====
+                        if previous_state != current_state:
+                            print(f"[{datetime.now()}] {devnm} → state changed to {current_state}")
 
         cursor.close()
         conn.close()
