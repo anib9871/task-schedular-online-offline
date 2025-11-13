@@ -1,6 +1,6 @@
 import mysql.connector
 import time as t
-from datetime import datetime, time as dt_time, timedelta
+from datetime import datetime, time as dt_time, timedelta , date
 import requests
 import smtplib
 from email.mime.text import MIMEText
@@ -92,12 +92,35 @@ def send_email(subject, message, email_ids):
         print("❌ Email failed:", e)
         return False
 
+
+
 def get_contact_info(device_id):
-    """Fetch contacts linked to a device."""
+    """Fetch contacts only if device has valid subscription_id=8 and Subcription_End_date >= today."""
     try:
         conn = mysql.connector.connect(**db_config)
         cursor = conn.cursor(dictionary=True)
 
+        today = date.today()
+
+        # Check subscription with join to get package info
+        cursor.execute("""
+            SELECT sh.*, msi.Package_Name
+            FROM Subcription_History sh
+            JOIN Master_Subscription_Info msi
+              ON sh.Subscription_ID = msi.Subscription_ID
+            WHERE sh.Device_ID=%s
+              AND sh.Subscription_ID=8
+              AND sh.Subcription_End_date >= %s
+        """, (device_id, today))
+        subscription = cursor.fetchone()
+
+        # Debug
+        print(f"DEBUG: subscription for device {device_id}:", subscription)
+
+        if not subscription:
+            return [], [], 1, 1  # no valid subscription → skip alerts
+
+        # Device info
         cursor.execute("SELECT ORGANIZATION_ID, CENTRE_ID FROM master_device WHERE DEVICE_ID=%s", (device_id,))
         device = cursor.fetchone()
         if not device:
@@ -106,6 +129,7 @@ def get_contact_info(device_id):
         org_id = device["ORGANIZATION_ID"] or 1
         centre_id = device["CENTRE_ID"] or 1
 
+        # Users linked to org+centre
         cursor.execute("""
             SELECT USER_ID_id FROM userorganizationcentrelink 
             WHERE ORGANIZATION_ID_id=%s AND CENTRE_ID_id=%s
@@ -116,16 +140,17 @@ def get_contact_info(device_id):
 
         format_strings = ','.join(['%s']*len(user_ids))
         cursor.execute(f"""
-            SELECT PHONE, EMAIL, SEND_SMS, SEND_EMAIL 
+            SELECT PHONE, EMAIL, SEND_SMS, SEND_EMAIL
             FROM master_user 
-            WHERE USER_ID IN ({format_strings}) 
-            AND (SEND_SMS=1 OR SEND_EMAIL=1)
+            WHERE USER_ID IN ({format_strings})
+              AND (SEND_SMS=1 OR SEND_EMAIL=1)
         """, tuple(user_ids))
         users = cursor.fetchall()
 
         phones = [u["PHONE"] for u in users if u["SEND_SMS"] == 1]
         emails = [u["EMAIL"] for u in users if u["SEND_EMAIL"] == 1]
         return phones, emails, org_id, centre_id
+
     except Exception as e:
         print("❌ Error getting contacts:", e)
         return [], [], 1, 1
@@ -154,6 +179,12 @@ def check_device_online_status():
         for device in devices:
             devid = str(device["DEVICE_ID"])  # ensure string keys
             devnm = device["DEVICE_NAME"]
+
+                # --------- CHECK SUBSCRIPTION FIRST ----------
+            phones, emails, org_id, centre_id = get_contact_info(devid)
+            if not phones and not emails:
+                print(f"⏹ {devnm} skipped (no valid subscription)")
+                continue  # skip this device entirely
 
             # Get last reading
             cursor.execute("""
