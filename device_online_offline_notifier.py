@@ -307,8 +307,8 @@ def check_device_online_status():
                          DEVICE_STATUS, DEVICE_STATUS_DATE, DEVICE_STATUS_TIME,
                          DEVICE_STATUS_SMS_DATE, DEVICE_STATUS_SMS_TIME,
                          DEVICE_STATUS_EMAIL_DATE, DEVICE_STATUS_EMAIL_TIME,
-                         IS_ACTIVE, ORGANIZATION_ID, CENTRE_ID)
-                         VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,1,%s,%s)
+                         ORGANIZATION_ID, CENTRE_ID)
+                         VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                     """, (
                         devid, 0, 0,
                         now.date(), now.time(),
