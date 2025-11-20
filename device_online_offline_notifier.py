@@ -1,6 +1,6 @@
 import mysql.connector
 import time as t
-from datetime import datetime, time as dt_time, timedelta , date
+from datetime import datetime, time as dt_time, timedelta, date
 import requests
 import smtplib
 from email.mime.text import MIMEText
@@ -25,28 +25,9 @@ SMTP_PORT = 587
 EMAIL_USER = "testwebservice71@gmail.com"
 EMAIL_PASS = "akuu vulg ejlg ysbt"
 
-OFFLINE_THRESHOLD = 5          # minutes
-OFFLINE_VERIFY_MINUTES = 3     # wait before confirming offline
+# NEW: use 10 minutes as requested
+OFFLINE_THRESHOLD = 10         # minutes
 SECOND_NOTIFICATION_HOURS = 6  # wait 6 hours before re-alert
-
-STATE_FILE = "notification_state.json"
-
-# ================== STATE FILE HANDLERS ==================
-def load_state():
-    """Load notification state from JSON."""
-    if os.path.exists(STATE_FILE):
-        try:
-            with open(STATE_FILE, "r") as f:
-                return json.load(f)
-        except json.JSONDecodeError:
-            print("⚠️ State file corrupted, resetting.")
-            return {}
-    return {}
-
-def save_state(state):
-    """Save state back to JSON."""
-    with open(STATE_FILE, "w") as f:
-        json.dump(state, f, indent=2)
 
 # ================== HELPERS ==================
 def build_message(ntf_typ, devnm):
@@ -91,8 +72,6 @@ def send_email(subject, message, email_ids):
     except Exception as e:
         print("❌ Email failed:", e)
         return False
-
-
 
 def get_contact_info(device_id):
     """Fetch contacts only if device has valid subscription_id=8 and Subcription_End_date >= today."""
@@ -172,15 +151,11 @@ def check_device_online_status():
         devices = cursor.fetchall()
         print(f"✅ Found {len(devices)} active devices")
 
-        # Load previous notification data
-        state = load_state()
-        print(f"🧾 Loaded {len(state)} records from JSON")
-
         for device in devices:
             devid = str(device["DEVICE_ID"])  # ensure string keys
             devnm = device["DEVICE_NAME"]
 
-                # --------- CHECK SUBSCRIPTION FIRST ----------
+            # --------- CHECK SUBSCRIPTION FIRST ----------
             phones, emails, org_id, centre_id = get_contact_info(devid)
             if not phones and not emails:
                 print(f"⏹ {devnm} skipped (no valid subscription)")
@@ -205,79 +180,38 @@ def check_device_online_status():
                 last_update = datetime.combine(last_read["READING_DATE"], reading_time)
                 diff_minutes = (now - last_update).total_seconds() / 60
 
+            # NEW: Determine online/offline using 10-minute threshold, NO verification loop
             current_state = 0 if (diff_minutes is None or diff_minutes > OFFLINE_THRESHOLD) else 1
 
-            # Verify offline devices again
-            if current_state == 0:
-                print(f"⚠️ {devnm} appears OFFLINE, verifying...")
-                verify_until = datetime.now() + timedelta(minutes=OFFLINE_VERIFY_MINUTES)
-                while datetime.now() < verify_until:
-                    cursor.execute("""
-                        SELECT READING_DATE, READING_TIME 
-                        FROM device_reading_log 
-                        WHERE DEVICE_ID=%s 
-                        ORDER BY READING_DATE DESC, READING_TIME DESC LIMIT 1
-                    """, (devid,))
-                    last_check = cursor.fetchone()
-                    cursor.fetchall()
-                    if last_check:
-                        reading_time = last_check["READING_TIME"]
-                        if isinstance(reading_time, timedelta):
-                            total_sec = reading_time.total_seconds()
-                            reading_time = dt_time(int(total_sec // 3600), int((total_sec % 3600) // 60), int(total_sec % 60))
-                        last_update_check = datetime.combine(last_check["READING_DATE"], reading_time)
-                        diff_check = (datetime.now() - last_update_check).total_seconds() / 60
-                        if diff_check <= OFFLINE_THRESHOLD:
-                            print(f"✅ {devnm} came back online within {OFFLINE_VERIFY_MINUTES} minutes.")
-                            current_state = 1
-                            break
-                    t.sleep(30)
+            # ---------------- Notification Logic (DB-driven, no JSON) ----------------
+            # Find any existing OPEN offline alarm (no date filter)
+            cursor.execute("""
+                SELECT * FROM iot_api_devicealarmlog
+                WHERE DEVICE_ID=%s AND DEVICE_ONLINE_STATUS=0
+                ORDER BY id DESC LIMIT 1
+            """, (devid,))
+            existing_offline = cursor.fetchone()
+            cursor.fetchall()
 
-            # ---------------- Notification Logic ----------------
-            now_time = datetime.now()
-            record = state.get(devid, {})
-            last_state = record.get("last_state")
-            last_notif_time = record.get("last_notif_time")
-
-            can_notify = False
-            reason = ""
-
-            if last_state != current_state:
-                can_notify = True
-                reason = "State changed"
-            elif last_notif_time:
-                last_notif_dt = datetime.fromisoformat(last_notif_time)
-                if (now_time - last_notif_dt) >= timedelta(hours=SECOND_NOTIFICATION_HOURS):
-                    can_notify = True
-                    reason = "6-hour reminder"
-
-            if can_notify:
-                phones, emails, org_id, centre_id = get_contact_info(devid)
-                sms_sent = False
-                email_sent = False
-
-                if current_state == 0:
-                    print(f"🚨 {devnm} confirmed OFFLINE! Sending alerts. ({reason})")
-                    message = build_message(3, devnm)
-                else:
-                    print(f"✅ {devnm} is ONLINE! Sending info alert. ({reason})")
+            if current_state == 1:
+                # DEVICE ONLINE
+                print(f"✅ {devnm} is ONLINE")
+                # If offline alarm exists (open), send ONLINE notification and close it
+                if existing_offline:
+                    print("➡ Found open offline alarm. Sending ONLINE SMS/Email and closing alarm.")
                     message = build_message(5, devnm)
+                    sms_sent = False
+                    email_sent = False
 
-                for phone in phones:
-                    if send_sms(phone, message):
-                        sms_sent = True
-                email_sent = send_email(f"{devnm} Status Update", message, emails)
+                    for phone in phones:
+                        if send_sms(phone, message):
+                            sms_sent = True
+                    email_sent = send_email(f"{devnm} Status Update", message, emails)
 
-                # DB log
-                cursor.execute("SELECT id FROM iot_api_devicealarmlog WHERE DEVICE_ID=%s AND ALARM_DATE=%s",
-                               (devid, now.date()))
-                existing = cursor.fetchone()
-                cursor.fetchall()
-
-                if existing:
+                    # Update the existing alarm: mark online, update times and org/centre
                     cursor.execute("""
                         UPDATE iot_api_devicealarmlog
-                        SET DEVICE_STATUS=%s,
+                        SET DEVICE_ONLINE_STATUS=%s,
                             DEVICE_STATUS_DATE=%s,
                             DEVICE_STATUS_TIME=%s,
                             DEVICE_STATUS_SMS_DATE=%s,
@@ -288,49 +222,106 @@ def check_device_online_status():
                             CENTRE_ID=%s
                         WHERE id=%s
                     """, (
-                        current_state,
+                        1,
                         now.date(),
                         now.time(),
-                        now.date() if sms_sent else None,
-                        now.time() if sms_sent else None,
-                        now.date() if email_sent else None,
-                        now.time() if email_sent else None,
+                        now.date() if sms_sent else existing_offline.get('DEVICE_STATUS_SMS_DATE'),
+                        now.time() if sms_sent else existing_offline.get('DEVICE_STATUS_SMS_TIME'),
+                        now.date() if email_sent else existing_offline.get('DEVICE_STATUS_EMAIL_DATE'),
+                        now.time() if email_sent else existing_offline.get('DEVICE_STATUS_EMAIL_TIME'),
                         org_id,
                         centre_id,
-                        existing['id']
+                        existing_offline['id']
                     ))
-                    print(f"📝 Updated alarm log for {devnm}")
+                    conn.commit()
                 else:
-                    cursor.execute("""
-                        INSERT INTO iot_api_devicealarmlog
-                        (DEVICE_ID, SENSOR_ID, PARAMETER_ID, ALARM_DATE, ALARM_TIME,
-                         DEVICE_STATUS, DEVICE_STATUS_DATE, DEVICE_STATUS_TIME,
-                         DEVICE_STATUS_SMS_DATE, DEVICE_STATUS_SMS_TIME,
-                         DEVICE_STATUS_EMAIL_DATE, DEVICE_STATUS_EMAIL_TIME,
-                         ORGANIZATION_ID, CENTRE_ID)
-                         VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-                    """, (
-                        devid, 0, 0,
-                        now.date(), now.time(),
-                        current_state, now.date(), now.time(),
-                        now.date() if sms_sent else None, now.time() if sms_sent else None,
-                        now.date() if email_sent else None, now.time() if email_sent else None,
-                        org_id, centre_id
-                    ))
-                    print(f"➕ Inserted new alarm log for {devnm}")
+                    # No open offline alarm and online — nothing to do
+                    print("➡ No open offline alarm. Nothing to update.")
+                continue  # next device
 
+            # current_state == 0 => DEVICE OFFLINE
+            print(f"🚨 {devnm} is OFFLINE")
+
+            if not existing_offline:
+                # Case A: No offline entry exists -> create new and send SMS
+                print("➡ No offline alarm exists. Creating new offline alarm and sending SMS/Email.")
+                message = build_message(3, devnm)
+                sms_sent = False
+                email_sent = False
+
+                for phone in phones:
+                    if send_sms(phone, message):
+                        sms_sent = True
+                email_sent = send_email(f"{devnm} Status Update", message, emails)
+
+                cursor.execute("""
+                    INSERT INTO iot_api_devicealarmlog
+                    (DEVICE_ID, SENSOR_ID, PARAMETER_ID, ALARM_DATE, ALARM_TIME,
+                     DEVICE_ONLINE_STATUS, DEVICE_STATUS_DATE, DEVICE_STATUS_TIME,
+                     DEVICE_STATUS_SMS_DATE, DEVICE_STATUS_SMS_TIME,
+                     DEVICE_STATUS_EMAIL_DATE, DEVICE_STATUS_EMAIL_TIME,
+                     ORGANIZATION_ID, CENTRE_ID)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                """, (
+                    devid, 0, 0,
+                    now.date(), now.time(),
+                    0, now.date(), now.time(),
+                    now.date() if sms_sent else None, now.time() if sms_sent else None,
+                    now.date() if email_sent else None, now.time() if email_sent else None,
+                    org_id, centre_id
+                ))
                 conn.commit()
+                print("➕ Inserted new offline alarm.")
+                continue
 
-                # ✅ Update state file
-                state[devid] = {
-                    "last_state": current_state,
-                    "last_notif_time": now_time.isoformat()
-                }
-                save_state(state)
-                print(f"💾 State updated for {devnm}")
+            # Case B: Offline entry exists -> check SMS sent time and 6-hour rule
+            print("➡ Offline alarm already exists. Checking SMS timing rules.")
+            sms_date = existing_offline.get("DEVICE_STATUS_SMS_DATE")
+            sms_time = existing_offline.get("DEVICE_STATUS_SMS_TIME")
+            sms_last_sent_dt = None
+            if sms_date and sms_time:
+                try:
+                    # sms_time could be stored as time object
+                    sms_last_sent_dt = datetime.combine(sms_date, sms_time) if isinstance(sms_date, date) else None
+                except Exception:
+                    sms_last_sent_dt = None
 
+            if not sms_last_sent_dt:
+                # SMS never sent for this alarm — send now
+                print("➡ SMS not sent previously. Sending SMS now.")
+                message = build_message(3, devnm)
+                sms_sent = False
+                for phone in phones:
+                    if send_sms(phone, message):
+                        sms_sent = True
+                # update sms date/time in alarm row
+                cursor.execute("""
+                    UPDATE iot_api_devicealarmlog
+                    SET DEVICE_STATUS_SMS_DATE=%s, DEVICE_STATUS_SMS_TIME=%s, ORGANIZATION_ID=%s, CENTRE_ID=%s
+                    WHERE id=%s
+                """, (now.date() if sms_sent else None, now.time() if sms_sent else None, org_id, centre_id, existing_offline['id']))
+                conn.commit()
+                continue
+
+            # If SMS was sent earlier -> check 6-hour gap
+            six_hours_after = sms_last_sent_dt + timedelta(hours=SECOND_NOTIFICATION_HOURS)
+            if datetime.now() >= six_hours_after:
+                print("➡ More than 6 hours passed since last SMS. Sending SMS again.")
+                message = build_message(3, devnm)
+                sms_sent = False
+                for phone in phones:
+                    if send_sms(phone, message):
+                        sms_sent = True
+                cursor.execute("""
+                    UPDATE iot_api_devicealarmlog
+                    SET DEVICE_STATUS_SMS_DATE=%s, DEVICE_STATUS_SMS_TIME=%s, ORGANIZATION_ID=%s, CENTRE_ID=%s
+                    WHERE id=%s
+                """, (now.date() if sms_sent else existing_offline.get('DEVICE_STATUS_SMS_DATE'),
+                      now.time() if sms_sent else existing_offline.get('DEVICE_STATUS_SMS_TIME'),
+                      org_id, centre_id, existing_offline['id']))
+                conn.commit()
             else:
-                print(f"⏳ {devnm} skipped (same state, no cooldown reached).")
+                print("➡ SMS was sent recently (<6 hrs). No action needed.")
 
         cursor.close()
         conn.close()
