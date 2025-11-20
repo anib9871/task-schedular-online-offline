@@ -8,15 +8,21 @@ import sys
 import traceback
 
 # ================== CONFIG ==================
+# db_config = {
+#     "host": "switchback.proxy.rlwy.net",
+#     "user": "root",
+#     "port": 44750,
+#     "password": "qYxlhEiaEvtiRvKaFyigDPtXSSCpddMv",
+#     "database": "railway",
+#     "raise_on_warnings": True,
+# }
 db_config = {
-    "host": "switchback.proxy.rlwy.net",
-    "user": "root",
-    "port": 44750,
-    "password": "qYxlhEiaEvtiRvKaFyigDPtXSSCpddMv",
-    "database": "railway",
-    "raise_on_warnings": True,
+    "host": os.getenv("MYSQLHOST"),
+    "user": os.getenv("MYSQLUSER"),
+    "port": int(os.getenv("MYSQLPORT")),
+    "password": os.getenv("MYSQLPASSWORD"),
+    "database": os.getenv("MYSQLDATABASE"),
 }
-
 SMS_API_URL = "http://www.universalsmsadvertising.com/universalsmsapi.php"
 SMS_USER = "8960853914"
 SMS_PASS = "8960853914"
