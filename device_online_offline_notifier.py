@@ -100,7 +100,7 @@ def get_contact_info(device_id):
             return [], [], 1, 1  # no valid subscription → skip alerts
 
         # Device info
-        cursor.execute("SELECT ORGANIZATION_ID, CENTRE_ID FROM master_device WHERE DEVICE_ID=%s", (device_id,))
+        cursor.execute("SELECT ORGANIZATION_ID, CENTRE_ID FROM iot_api_masterdevice WHERE DEVICE_ID=%s", (device_id,))
         device = cursor.fetchone()
         if not device:
             return [], [], 1, 1
@@ -147,7 +147,7 @@ def check_device_online_status():
         cursor = conn.cursor(dictionary=True)
         now = datetime.now()
 
-        cursor.execute("SELECT DEVICE_ID, DEVICE_NAME FROM master_device WHERE DEVICE_STATUS = 1")
+        cursor.execute("SELECT DEVICE_ID, DEVICE_NAME FROM iot_api_masterdevice WHERE DEVICE_STATUS = 1")
         devices = cursor.fetchall()
         print(f"✅ Found {len(devices)} active devices")
 
