@@ -28,7 +28,7 @@ SMTP_PORT = 587
 EMAIL_USER = "testwebservice71@gmail.com"
 EMAIL_PASS = "akuu vulg ejlg ysbt"
 
-OFFLINE_THRESHOLD = 10         # minutes
+OFFLINE_THRESHOLD = 5       # minutes
 SECOND_NOTIFICATION_HOURS = 6  # hours
 
 # ================== HELPERS ==================
