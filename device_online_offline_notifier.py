@@ -15,7 +15,7 @@ db_config = {
     "raise_on_warnings": True,
 }
 
-SMS_API_URL = "http://www.universalsmsadvertising.com/universalsmsapi.php"
+SMS_API_URL = "https://www.universalsmsadvertising.com/universalsmsapi.php"
 SMS_USER = "8960853914"
 SMS_PASS = "8960853914"
 SENDER_ID = "FRTLLP"
