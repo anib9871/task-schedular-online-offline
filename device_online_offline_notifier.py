@@ -267,13 +267,13 @@ def check_device_online_status():
 
             diff_minutes = None
             last_update = None
-
+            now = datetime.now(pytz.timezone("Asia/Kolkata"))
             if last_read:
                 rd = last_read.get("READING_DATE")
                 rt = parse_reading_time(last_read.get("READING_TIME"))
                 if rd and rt:
                     last_update = datetime.combine(rd, rt)
-                    now = datetime.now(pytz.timezone("Asia/Kolkata"))
+                    # now = datetime.now(pytz.timezone("Asia/Kolkata"))
 
                     diff_minutes = (now - last_update).total_seconds() / 60.0
 
