@@ -4,6 +4,7 @@ import requests
 import smtplib
 from email.mime.text import MIMEText
 import traceback
+import pytz
 
 # ================== CONFIG ==================
 db_config = {
@@ -15,7 +16,7 @@ db_config = {
     "raise_on_warnings": True,
 }
 
-SMS_API_URL = "http://www.universalsmsadvertising.com/universalsmsapi.php"
+SMS_API_URL = "https://www.universalsmsadvertising.com/universalsmsapi.php"
 SMS_USER = "8960853914"
 SMS_PASS = "8960853914"
 SENDER_ID = "FRTLLP"
@@ -25,7 +26,7 @@ SMTP_PORT = 587
 EMAIL_USER = "testwebservice71@gmail.com"
 EMAIL_PASS = "akuu vulg ejlg ysbt"
 
-OFFLINE_THRESHOLD = 5         # minutes
+OFFLINE_THRESHOLD = 10         # minutes
 SECOND_NOTIFICATION_HOURS = 6  # hours
 
 # ================== HELPERS ==================
@@ -272,8 +273,10 @@ def check_device_online_status():
                 rt = parse_reading_time(last_read.get("READING_TIME"))
                 if rd and rt:
                     last_update = datetime.combine(rd, rt)
+                    now = datetime.now(pytz.timezone("Asia/Kolkata"))
 
                     diff_minutes = (now - last_update).total_seconds() / 60.0
+
                     log(f"DEBUG last_read -> date={rd} time={rt} last_update={last_update} diff_min={diff_minutes:.1f}")
                     # fix negative diffs due to clock skew
                     #if diff_minutes < 0:
