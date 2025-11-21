@@ -3,8 +3,9 @@ from datetime import datetime, time as dt_time, timedelta, date
 import requests
 import smtplib
 from email.mime.text import MIMEText
-import traceback
 import pytz
+import traceback
+from datetime import timezone, timedelta
 
 # ================== CONFIG ==================
 db_config = {
@@ -26,7 +27,7 @@ SMTP_PORT = 587
 EMAIL_USER = "testwebservice71@gmail.com"
 EMAIL_PASS = "akuu vulg ejlg ysbt"
 
-OFFLINE_THRESHOLD = 5        # minutes
+OFFLINE_THRESHOLD = 5         # minutes
 SECOND_NOTIFICATION_HOURS = 6  # hours
 
 # ================== HELPERS ==================
@@ -273,22 +274,35 @@ def check_device_online_status():
                 rt = parse_reading_time(last_read.get("READING_TIME"))
                 if rd and rt:
                     last_update = datetime.combine(rd, rt)
-                    # now = datetime.now(pytz.timezone("Asia/Kolkata"))
+                    
 
-                    diff_minutes = (now - last_update).total_seconds() / 60.0
+                    
+            IST = timezone(timedelta(hours=5, minutes=30))
 
-                    log(f"DEBUG last_read -> date={rd} time={rt} last_update={last_update} diff_min={diff_minutes:.1f}")
+            now = datetime.now(IST)
+
+# If DB datetime is naive → make it IST aware
+            if last_update and last_update.tzinfo is None:
+             last_update = last_update.replace(tzinfo=IST)
+
+            if last_update:
+                diff_minutes = (now - last_update).total_seconds() / 60.0
+            else:
+                diff_minutes = OFFLINE_THRESHOLD + 1
+
+
+                log(f"DEBUG last_read -> date={rd} time={rt} last_update={last_update} diff_min={diff_minutes:.1f}")
                     # fix negative diffs due to clock skew
                     #if diff_minutes < 0:
-                    if diff_minutes > 5:
+                if diff_minutes > 5:
                         log(f"⚠ Fixing negative diff_min ({diff_minutes:.1f}) to force OFFLINE")
                         diff_minutes = OFFLINE_THRESHOLD + 1.0
                 else:
                     log(f"DEBUG could not parse READING_TIME: {last_read.get('READING_TIME')}")
                     diff_minutes = OFFLINE_THRESHOLD + 1.0
-            else:
-                log("DEBUG no readings -> forcing offline")
-                diff_minutes = OFFLINE_THRESHOLD + 1.0
+            # else:
+            #     log("DEBUG no readings -> forcing offline")
+            #     diff_minutes = OFFLINE_THRESHOLD + 1.0
 
             current_state = 0 if (diff_minutes is None or diff_minutes > OFFLINE_THRESHOLD) else 1
 
