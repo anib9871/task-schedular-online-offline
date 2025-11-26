@@ -24,11 +24,6 @@ SMS_USER = "8960853914"
 SMS_PASS = "8960853914"
 SENDER_ID = "FRTLLP"
 
-SMTP_SERVER = "smtp.gmail.com"
-SMTP_PORT = 587
-EMAIL_USER = "testwebservice71@gmail.com"
-EMAIL_PASS = "akuu vulg ejlg ysbt"
-
 OFFLINE_THRESHOLD = 5         # minutes
 SECOND_NOTIFICATION_HOURS = 6  # hours
 
@@ -52,6 +47,7 @@ def build_message(ntf_typ, devnm):
         5: f"INFO!! The device {devnm} is back online. No action is required - Regards Fertisense LLP",
     }
     return messages.get(ntf_typ, f"Alert for {devnm} - Regards Fertisense LLP")
+# ---------------- send sms ----------------
 def send_sms(phone, message):
     """
     Send SMS via configured provider.
@@ -75,7 +71,6 @@ def send_sms(phone, message):
     except Exception as e:
         log(f"❌ SMS failed for {phone}: {e}")
         return False
-
 
 # ---------------- Email templates (HTML) ----------------
 def offline_html(dev_name, diff_minutes=None):
@@ -409,7 +404,7 @@ def check_device_online_status():
                     log(f"DEBUG could not parse READING_TIME: {last_read.get('READING_TIME')}")
             else:
                 log("DEBUG no readings found for device; forcing OFFLINE")
-
+            print("Last Updated time",last_update)
             if last_update:
                 diff_minutes = (now - last_update).total_seconds() / 60.0
                 # fix negative diffs due to clock skew
@@ -546,6 +541,7 @@ def check_device_online_status():
                 sms_time_parsed = parse_db_time_like(sms_time)
                 if sms_date and sms_time_parsed:
                     sms_last_dt = datetime.combine(sms_date, sms_time_parsed)
+                    print("sms_last_date",sms_last_dt)
                 elif sms_date and not sms_time_parsed:
                     # if only date present, use midnight
                     sms_last_dt = datetime.combine(sms_date, dt_time(0, 0, 0))
