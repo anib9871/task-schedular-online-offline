@@ -52,6 +52,29 @@ def build_message(ntf_typ, devnm):
         5: f"INFO!! The device {devnm} is back online. No action is required - Regards Fertisense LLP",
     }
     return messages.get(ntf_typ, f"Alert for {devnm} - Regards Fertisense LLP")
+def send_sms(phone, message):
+    """
+    Send SMS via configured provider.
+    Return True if HTTP status is 200 (best-effort).
+    """
+    if not phone:
+        return False
+    try:
+        params = {
+            "user_name": SMS_USER,
+            "user_password": SMS_PASS,
+            "mobile": phone,
+            "sender_id": SENDER_ID,
+            "type": "F",
+            "text": message
+        }
+        r = requests.get(SMS_API_URL, params=params, timeout=30)
+        text_preview = r.text.replace("\n", " ")[:400]
+        log(f"SMS API -> phone={phone} status_code={r.status_code} text={text_preview}")
+        return r.status_code == 200
+    except Exception as e:
+        log(f"❌ SMS failed for {phone}: {e}")
+        return False
 
 
 # ---------------- Email templates (HTML) ----------------
