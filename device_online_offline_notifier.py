@@ -409,14 +409,32 @@ def check_device_online_status():
             else:
                 log("DEBUG no readings found for device; forcing OFFLINE")
             print("Last Updated time",last_update)
+            # if last_update: 
+            #     diff_minutes = (now - last_update).total_seconds() / 60.0
+            #     # fix negative diffs due to clock skew
+            #     if diff_minutes < 0:
+            #         log(f"⚠ Negative diff_min ({diff_minutes:.1f}) detected — forcing OFFLINE")
+            #         diff_minutes = OFFLINE_THRESHOLD + 1.0
+            # else:
+            #     diff_minutes = OFFLINE_THRESHOLD + 1.0
             if last_update:
+
+    # STEP 1: Convert DB timestamp to IST-aware if it is naive
+                if last_update.tzinfo is None:
+                    last_update = IST_PYTZ.localize(last_update)
+
+                # STEP 2: now is already IST-aware, so subtraction is safe
                 diff_minutes = (now - last_update).total_seconds() / 60.0
-                # fix negative diffs due to clock skew
+
+                # STEP 3: fix negative diffs due to clock skew
                 if diff_minutes < 0:
-                    log(f"⚠ Negative diff_min ({diff_minutes:.1f}) detected — forcing OFFLINE")
+                    log(f"⚠️ Negative diff_min ({diff_minutes:.1f}) detected — forcing OFFLINE")
                     diff_minutes = OFFLINE_THRESHOLD + 1.0
+
             else:
+                # No last_update available → force offline
                 diff_minutes = OFFLINE_THRESHOLD + 1.0
+
 
             log(f"DEBUG last_read -> date={last_read.get('READING_DATE') if last_read else None} time={last_read.get('READING_TIME') if last_read else None} last_update={last_update} diff_min={diff_minutes:.1f}")
 
