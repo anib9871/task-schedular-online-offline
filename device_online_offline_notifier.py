@@ -9,6 +9,10 @@ from datetime import datetime, date, time as dt_time, timedelta, timezone
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
+SMTP_SERVER = "smtp.gmail.com"
+SMTP_PORT = 587
+EMAIL_USER = "testwebservice71@gmail.com"
+EMAIL_PASS = "akuu vulg ejlg ysbt"
 # ================== CONFIG ==================
 db_config = {
     "host": "switchback.proxy.rlwy.net",
@@ -29,7 +33,7 @@ SECOND_NOTIFICATION_HOURS = 6  # hours
 
 # Brevo (Sendinblue) API key from env
 BREVO_API_KEY = os.getenv("BREVO_API_KEY")  # set this in Railway/Env
-
+EMAIL_USER = "fertisenseiot@gmail.com"
 # timezone objects (kept for compatibility)
 IST_PYTZ = pytz.timezone("Asia/Kolkata")
 IST = timezone(timedelta(hours=5, minutes=30))
