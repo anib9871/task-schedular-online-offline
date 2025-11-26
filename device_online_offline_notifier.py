@@ -462,16 +462,56 @@ def check_device_online_status():
                     email_sent = False
 
                     if phones:
-                        for ph in phones:
+                        # for ph in phones:
+                        #     log(f"DEBUG: attempting ONLINE SMS to {ph} -> message: {message[:120]}")
+                        #     ok = send_sms(ph, message)
+                        #     log(f"DEBUG: ONLINE SMS send result for {ph} = {ok}")
+                        #     if ok:
+                        #         sms_sent_any = True
+                        # ---- Deduplicate phone numbers (handles comma-separated numbers) ----
+                        unique_phones = set()
+
+                        for p in phones:
+                            if p:
+                                for num in p.split(","):
+                                    num = num.strip()
+                                    if num:
+                                        unique_phones.add(num)
+
+                        log(f"Unique phone numbers for notification: {unique_phones}")
+
+                        # ---- Send SMS to each UNIQUE phone number ----
+                        sms_sent_any = False
+
+                        for ph in unique_phones:
                             log(f"DEBUG: attempting ONLINE SMS to {ph} -> message: {message[:120]}")
                             ok = send_sms(ph, message)
                             log(f"DEBUG: ONLINE SMS send result for {ph} = {ok}")
                             if ok:
                                 sms_sent_any = True
 
-                    if emails:
-                        subj = f"✔ {devnm} is Back Online - Fertisense Update"
-                        email_sent = send_email(subj, html, emails)
+
+                    # if emails:
+                    #     subj = f"✔ {devnm} is Back Online - Fertisense Update"
+                    #     email_sent = send_email(subj, html, emails)
+                    #     email_sent = bool(email_sent)
+                    #     log(f"DEBUG ONLINE email_sent = {email_sent}")
+                    # ---- Deduplicate emails (also handles comma-separated) ----
+                    unique_emails = set()
+
+                    for e in emails:
+                        if e:
+                            for item in e.split(","):
+                                item = item.strip()
+                                if item:
+                                    unique_emails.add(item)
+
+                    log(f"Unique emails for notification: {unique_emails}")
+
+                    # ---- Send email only once ----
+                    if unique_emails:
+                        subj = f"✓ {devnm} is Back Online - Fertisense Update"
+                        email_sent = send_email(subj, html, list(unique_emails))
                         email_sent = bool(email_sent)
                         log(f"DEBUG ONLINE email_sent = {email_sent}")
 
@@ -517,18 +557,57 @@ def check_device_online_status():
                 email_sent = False
 
                 if phones:
-                    for ph in phones:
-                        log(f"DEBUG: attempting OFFLINE SMS to {ph} -> message: {message[:120]}")
+                    # for ph in phones:
+                    #     log(f"DEBUG: attempting OFFLINE SMS to {ph} -> message: {message[:120]}")
+                    #     ok = send_sms(ph, message)
+                    #     log(f"DEBUG: OFFLINE SMS send result for {ph} = {ok}")
+                    #     if ok:
+                    #         sms_sent_any = True
+                    # ---- Deduplicate phone numbers (handles comma-separated numbers) ----
+                    unique_phones = set()
+
+                    for p in phones:
+                        if p:
+                            for num in p.split(","):
+                                num = num.strip()
+                                if num:
+                                    unique_phones.add(num)
+
+                    log(f"Unique phone numbers for notification: {unique_phones}")
+
+                    # ---- Send SMS to each UNIQUE phone number ----
+                    sms_sent_any = False
+
+                    for ph in unique_phones:
+                        log(f"DEBUG: attempting ONLINE SMS to {ph} -> message: {message[:120]}")
                         ok = send_sms(ph, message)
-                        log(f"DEBUG: OFFLINE SMS send result for {ph} = {ok}")
+                        log(f"DEBUG: ONLINE SMS send result for {ph} = {ok}")
                         if ok:
                             sms_sent_any = True
 
-                if emails:
-                    subj = f"⚠ {devnm} is Offline - Fertisense Alert"
-                    email_sent = send_email(subj, html, emails)
+                # if emails:
+                #     subj = f"⚠ {devnm} is Offline - Fertisense Alert"
+                #     email_sent = send_email(subj, html, emails)
+                #     email_sent = bool(email_sent)
+                #     log(f"DEBUG initial offline email_sent = {email_sent}")
+                # ---- Deduplicate emails (also handles comma-separated) ----
+                unique_emails = set()
+
+                for e in emails:
+                    if e:
+                        for item in e.split(","):
+                            item = item.strip()
+                            if item:
+                                unique_emails.add(item)
+
+                log(f"Unique emails for notification: {unique_emails}")
+
+                # ---- Send email only once ----
+                if unique_emails:
+                    subj = f"✓ {devnm} is Back Online - Fertisense Update"
+                    email_sent = send_email(subj, html, list(unique_emails))
                     email_sent = bool(email_sent)
-                    log(f"DEBUG initial offline email_sent = {email_sent}")
+                    log(f"DEBUG ONLINE email_sent = {email_sent}")
 
                 try:
                     log("DEBUG: about to INSERT new offline alarm into device_status_alarm_log")
