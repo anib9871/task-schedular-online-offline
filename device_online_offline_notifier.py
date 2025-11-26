@@ -362,9 +362,9 @@ def check_device_online_status():
         cursor = conn.cursor(dictionary=True)
 
         # Use local 'now' (naive local time) consistently throughout this run
-        now = datetime.now()
+        #now = datetime.now)
         # Optionally, if you prefer explicit IST-aware times, you can use:
-        # now = datetime.now(IST_PYTZ)
+        now = datetime.now(IST_PYTZ)
 
         cursor.execute("SELECT DEVICE_ID, DEVICE_NAME FROM iot_api_masterdevice WHERE DEVICE_STATUS = 1")
         devices = cursor.fetchall()
@@ -372,7 +372,7 @@ def check_device_online_status():
 
         for d in devices:
             # refresh 'now' for each device so timestamps are accurate
-            now = datetime.now()
+            now = datetime.now(IST_PYTZ)
             devid = d["DEVICE_ID"]
             devnm = d.get("DEVICE_NAME") or f"Device-{devid}"
             log(f"\n--- Processing device {devid} : {devnm} ---")
