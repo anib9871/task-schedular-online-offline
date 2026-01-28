@@ -22,6 +22,7 @@ db_config = {
     "port": 44750,
     "password": "qYxlhEiaEvtiRvKaFyigDPtXSSCpddMv",
     "database": "railway",
+    "ssl_disabled": True   # ← YE LINE
 }
 
 SMS_API_URL = "https://www.universalsmsadvertising.com/universalsmsapi.php"
