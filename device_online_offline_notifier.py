@@ -19,8 +19,8 @@ CONTACT_CACHE = {}
 db_config = {
     "host": "switchyard.proxy.rlwy.net",
     "user": "root",
-    "port": 28085,
-    "password": "NOtYUNawwodSrBfGubHhwKaFtWyGXQct",
+    "port": 44750,
+    "password": "qYxlhEiaEvtiRvKaFyigDPtXSSCpddMv",
     "database": "railway",
 }
 
