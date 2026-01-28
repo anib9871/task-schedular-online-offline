@@ -27,7 +27,7 @@ db_config = {
     # THIS IS THE KEY
     
     "ssl": True,
-    "autocommit": True,
+    "autocommit": {},
 
     
     "cursorclass": pymysql.cursors.DictCursor,
