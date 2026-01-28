@@ -1,5 +1,6 @@
 import os
-import mysql.connector
+# import mysql.connector
+import pymysql
 import requests
 # import smtplib
 import pytz
