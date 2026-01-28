@@ -2,7 +2,6 @@ import os
 # import mysql.connector
 import pymysql
 import requests
-import ssl
 # import smtplib
 import pytz
 import traceback
@@ -26,8 +25,8 @@ db_config = {
     "database": "railway",
     # THIS IS THE KEY
     
-    "ssl": True,
-    "autocommit": {},
+    "ssl_ca": None,
+    "autocommit": True,
 
     
     "cursorclass": pymysql.cursors.DictCursor,
