@@ -2,6 +2,7 @@ import os
 # import mysql.connector
 import pymysql
 import requests
+import ssl
 # import smtplib
 import pytz
 import traceback
@@ -23,8 +24,17 @@ db_config = {
     "port": 44750,
     "password": "qYxlhEiaEvtiRvKaFyigDPtXSSCpddMv",
     "database": "railway",
+    # THIS IS THE KEY
+    
+    "ssl": True,
+    "autocommit": True,
+
+    
     "cursorclass": pymysql.cursors.DictCursor,
-    "connect_timeout": 10,
+    "connect_timeout": 15,
+    "read_timeout": 15,
+    "write_timeout": 15,
+    
 }
 
 SMS_API_URL = "https://www.universalsmsadvertising.com/universalsmsapi.php"
@@ -341,7 +351,7 @@ def check_device_online_status():
     try:
         log("🚀 Device online/offline check started")
         conn = pymysql.connect(**db_config)
-        cursor = conn.cursor
+        cursor = conn.cursor()
 
         now = datetime.now(IST_PYTZ)
 
