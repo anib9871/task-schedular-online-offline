@@ -23,7 +23,8 @@ db_config = {
     "port": 44750,
     "password": "qYxlhEiaEvtiRvKaFyigDPtXSSCpddMv",
     "database": "railway",
-    "ssl_disabled": True   # ← YE LINE
+    "cursorclass": pymysql.cursors.DictCursor,
+    "connect_timeout": 10,
 }
 
 SMS_API_URL = "https://www.universalsmsadvertising.com/universalsmsapi.php"
@@ -339,8 +340,8 @@ def check_device_online_status():
     conn = cursor = None
     try:
         log("🚀 Device online/offline check started")
-        conn = mysql.connector.connect(**db_config)
-        cursor = conn.cursor(dictionary=True)
+        conn = pymysql.connect(**db_config)
+        cursor = conn.cursor
 
         now = datetime.now(IST_PYTZ)
 
